@@ -20,6 +20,10 @@ namespace CornerStore
         {
             base.OnModelCreating(modelBuilder);
 
+            // Define composite primary key for the join table
+            modelBuilder.Entity<OrderProduct>()
+                .HasKey(op => new { op.OrderId, op.ProductId });
+
             // Seed Categories
             modelBuilder.Entity<Category>().HasData(
                 new Category { Id = 1, CategoryName = "Snacks" },
@@ -39,7 +43,7 @@ namespace CornerStore
 
             // Seed Orders
             modelBuilder.Entity<Order>().HasData(
-                new Order { Id = 1, CashierId = 1, PaidOnDate = DateTime.UtcNow }
+                new Order { Id = 1, CashierId = 1, PaidOnDate = new DateTime(2024, 01, 01, 12, 00, 00, DateTimeKind.Utc) }
             );
 
             // Seed OrderProducts
