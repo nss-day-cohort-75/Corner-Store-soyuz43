@@ -1,3 +1,4 @@
+using CornerStore;
 using CornerStore.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
@@ -13,7 +14,8 @@ builder.Services.AddSwaggerGen();
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 // allows our api endpoints to access the database through Entity Framework Core and provides dummy value for testing
-builder.Services.AddNpgsql<CornerStoreDbContext>(builder.Configuration["CornerStoreDbConnectionString"] ?? "testing");
+builder.Services.AddDbContext<CornerStoreDbContext>(options =>
+    options.UseNpgsql(builder.Configuration["CornerStoreDbConnectionString"] ?? "testing"));
 
 // Set the JSON serializer options
 builder.Services.Configure<JsonOptions>(options =>
