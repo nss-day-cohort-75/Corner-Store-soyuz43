@@ -133,6 +133,68 @@ app.MapPut("/products/{id}", async (int id, ProductCreateDTO dto, CornerStoreDbC
     }
 });
 
+// Endpoint: POST /cashiers
+app.MapPost("/cashiers", async (CashierDTO dto, CornerStoreDbContext db) =>
+{
+    Cashier cashier = new Cashier
+    {
+        FirstName = dto.FirstName,
+        LastName = dto.LastName
+    };
+
+    db.Cashiers.Add(cashier);
+    await db.SaveChangesAsync();
+
+    dto.Id = cashier.Id; // round-trip the ID
+    return Results.Created($"/cashiers/{cashier.Id}", dto);
+});
+
+// Endpoint: GET /cashiers/{id}
+app.MapGet("/cashiers/{id}", async (int id, CornerStoreDbContext db) =>
+{
+    var cashier = await db.Cashiers
+        .Include(c => c.Orders)
+            .ThenInclude(o => o.OrderProducts)
+                .ThenInclude(op => op.Product)
+        .FirstOrDefaultAsync(c => c.Id == id);
+
+    if (cashier == null)
+    {
+        return Results.NotFound($"No cashier found with ID {id}.");
+    }
+
+    CashierDTO result = new CashierDTO
+    {
+        Id = cashier.Id,
+        FirstName = cashier.FirstName,
+        LastName = cashier.LastName
+    };
+
+    List<OrderDTO> orders = cashier.Orders.Select(order => new OrderDTO
+    {
+        Id = order.Id,
+        CashierId = order.CashierId,
+        CashierFullName = result.FullName,
+        PaidOnDate = order.PaidOnDate,
+        Total = order.Total,
+        Products = order.OrderProducts.Select(op => new OrderProductDTO
+        {
+            ProductId = op.ProductId,
+            ProductName = op.Product.ProductName,
+            Quantity = op.Quantity,
+            Price = op.Product.Price
+        }).ToList()
+    }).ToList();
+
+    return Results.Ok(new
+    {
+        Cashier = result,
+        Orders = orders
+    });
+});
+
+
+
 
 app.Run();
 
