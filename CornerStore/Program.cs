@@ -194,6 +194,125 @@ app.MapGet("/cashiers/{id}", async (int id, CornerStoreDbContext db) =>
 });
 
 
+// Endpoint: POST /orders
+app.MapPost("/orders", async (OrderCreateDTO dto, CornerStoreDbContext db) =>
+{
+    try
+    {
+        // Step 1: Validate cashier exists
+        var cashier = await db.Cashiers.FindAsync(dto.CashierId);
+        if (cashier == null)
+            return Results.BadRequest("Invalid CashierId.");
+
+        // Step 2: Fetch all products in request
+        var productIds = dto.Products.Select(p => p.ProductId).ToList();
+        var products = await db.Products
+            .Where(p => productIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id);
+
+        if (products.Count != productIds.Count)
+            return Results.BadRequest("One or more productIds are invalid.");
+
+        // Step 3: Create the order and attach OrderProducts
+        var order = new Order
+        {
+            CashierId = dto.CashierId,
+            PaidOnDate = DateTime.UtcNow,
+            OrderProducts = dto.Products.Select(p => new OrderProduct
+            {
+                ProductId = p.ProductId,
+                Quantity = p.Quantity
+            }).ToList()
+        };
+
+        db.Orders.Add(order);
+        await db.SaveChangesAsync();
+
+        // Step 4: Map back to OrderDTO for response
+        OrderDTO result = new OrderDTO
+        {
+            Id = order.Id,
+            CashierId = cashier.Id,
+            CashierFullName = $"{cashier.FirstName} {cashier.LastName}",
+            PaidOnDate = order.PaidOnDate,
+            Total = order.Total,
+            Products = order.OrderProducts.Select(op => new OrderProductDTO
+            {
+                ProductId = op.ProductId,
+                ProductName = products[op.ProductId].ProductName,
+                Quantity = op.Quantity,
+                Price = products[op.ProductId].Price
+            }).ToList()
+        };
+
+        return Results.Created($"/orders/{order.Id}", result);
+    }
+    // Catches FK constraint violations (e.g. deleted cashier or product)
+    catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState == "23503")
+    {
+        return Results.BadRequest("Foreign key constraint violated.");
+    }
+    // Fallback for unexpected server/db issues
+    catch (Exception)
+    {
+        return Results.Problem("An error occurred while processing the order.");
+    }
+})
+.Produces<OrderDTO>(StatusCodes.Status201Created)
+.Produces(StatusCodes.Status400BadRequest)
+.Produces(StatusCodes.Status500InternalServerError);
+
+// Endpoint: GET /all orders with date query strig param
+app.MapGet("/orders", async (string? orderDate, CornerStoreDbContext db) =>
+{
+    // Step 1: Base query — includes navigation
+    var query = db.Orders
+        .Include(o => o.Cashier)
+        .Include(o => o.OrderProducts)
+            .ThenInclude(op => op.Product)
+        .AsQueryable();
+
+    // Step 2: Filter if orderDate query param is provided
+    if (!string.IsNullOrEmpty(orderDate) &&
+        DateTime.TryParse(orderDate, out DateTime parsedDate))
+    {
+        query = query.Where(o => o.PaidOnDate.HasValue && o.PaidOnDate.Value.Date == parsedDate.Date);
+    }
+
+    // Step 3: Execute query and project to DTOs
+    var orders = await query.Select(order => new OrderDTO
+    {
+        Id = order.Id,
+        CashierId = order.CashierId,
+        CashierFullName = $"{order.Cashier.FirstName} {order.Cashier.LastName}",
+        PaidOnDate = order.PaidOnDate,
+        Total = order.Total,
+        Products = order.OrderProducts.Select(op => new OrderProductDTO
+        {
+            ProductId = op.ProductId,
+            ProductName = op.Product.ProductName,
+            Quantity = op.Quantity,
+            Price = op.Product.Price
+        }).ToList()
+    }).ToListAsync();
+
+    return Results.Ok(orders);
+});
+
+
+// Endpoint: Del /orders by id
+app.MapDelete("/orders/{id}", async (int id, CornerStoreDbContext db) =>
+{
+    var order = await db.Orders.FindAsync(id);
+
+    if (order == null)
+        return Results.NotFound($"No order found with ID {id}");
+
+    db.Orders.Remove(order);
+    await db.SaveChangesAsync();
+
+    return Results.NoContent();
+});
 
 
 app.Run();
