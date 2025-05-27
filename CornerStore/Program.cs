@@ -51,7 +51,7 @@ app.MapGet("/products", async (CornerStoreDbContext db) =>
                 ProductName = p.ProductName,
                 Price = p.Price,
                 Brand = p.Brand,
-                CategoryName = p.Category.CategoryName
+                CategoryName = p.Category!.CategoryName
             })
             .ToListAsync();
 
@@ -180,7 +180,7 @@ app.MapGet("/cashiers/{id}", async (int id, CornerStoreDbContext db) =>
         Products = order.OrderProducts.Select(op => new OrderProductDTO
         {
             ProductId = op.ProductId,
-            ProductName = op.Product.ProductName,
+            ProductName = op.Product!.ProductName,
             Quantity = op.Quantity,
             Price = op.Product.Price
         }).ToList()
@@ -284,13 +284,13 @@ app.MapGet("/orders", async (string? orderDate, CornerStoreDbContext db) =>
     {
         Id = order.Id,
         CashierId = order.CashierId,
-        CashierFullName = $"{order.Cashier.FirstName} {order.Cashier.LastName}",
+        CashierFullName = $"{order.Cashier!.FirstName} {order.Cashier.LastName}",
         PaidOnDate = order.PaidOnDate,
         Total = order.Total,
         Products = order.OrderProducts.Select(op => new OrderProductDTO
         {
             ProductId = op.ProductId,
-            ProductName = op.Product.ProductName,
+            ProductName = op.Product!.ProductName,
             Quantity = op.Quantity,
             Price = op.Product.Price
         }).ToList()

@@ -12,7 +12,7 @@ public class Order
     public int CashierId { get; set; }
 
     [Required]
-    public Cashier Cashier { get; set; }
+    public Cashier? Cashier { get; set; }
 
     public DateTime? PaidOnDate { get; set; }
 
@@ -20,5 +20,5 @@ public class Order
     public List<OrderProduct> OrderProducts { get; set; } = new();
 
     [NotMapped]
-    public decimal Total => OrderProducts.Sum(op => op.Product.Price * op.Quantity);
+    public decimal Total => OrderProducts.Sum(op => op.Product!.Price * op.Quantity);
 }
