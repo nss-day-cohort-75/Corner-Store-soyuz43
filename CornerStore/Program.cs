@@ -152,7 +152,7 @@ app.MapPost("/cashiers", async (CashierDTO dto, CornerStoreDbContext db) =>
 // Endpoint: GET /cashiers/{id}
 app.MapGet("/cashiers/{id}", async (int id, CornerStoreDbContext db) =>
 {
-    var cashier = await db.Cashiers
+    Cashier? cashier = await db.Cashiers
         .Include(c => c.Orders)
             .ThenInclude(o => o.OrderProducts)
                 .ThenInclude(op => op.Product)
@@ -163,7 +163,7 @@ app.MapGet("/cashiers/{id}", async (int id, CornerStoreDbContext db) =>
         return Results.NotFound($"No cashier found with ID {id}.");
     }
 
-    CashierDTO result = new CashierDTO
+    CashierDTO cashierDTO = new CashierDTO
     {
         Id = cashier.Id,
         FirstName = cashier.FirstName,
@@ -174,7 +174,7 @@ app.MapGet("/cashiers/{id}", async (int id, CornerStoreDbContext db) =>
     {
         Id = order.Id,
         CashierId = order.CashierId,
-        CashierFullName = result.FullName,
+        CashierFullName = cashierDTO.FullName,
         PaidOnDate = order.PaidOnDate,
         Total = order.Total,
         Products = order.OrderProducts.Select(op => new OrderProductDTO
@@ -186,11 +186,13 @@ app.MapGet("/cashiers/{id}", async (int id, CornerStoreDbContext db) =>
         }).ToList()
     }).ToList();
 
-    return Results.Ok(new
+    CashierDetailDTO cashierDetail = new CashierDetailDTO
     {
-        Cashier = result,
+        Cashier = cashierDTO,
         Orders = orders
-    });
+    };
+
+    return Results.Ok(cashierDetail);
 });
 
 
