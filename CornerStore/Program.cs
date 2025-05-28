@@ -163,33 +163,26 @@ app.MapGet("/cashiers/{id}", async (int id, CornerStoreDbContext db) =>
         return Results.NotFound($"No cashier found with ID {id}.");
     }
 
-    CashierDTO cashierDTO = new CashierDTO
+    CashierDetailDTO cashierDetail = new CashierDetailDTO
     {
         Id = cashier.Id,
         FirstName = cashier.FirstName,
-        LastName = cashier.LastName
-    };
-
-    List<OrderDTO> orders = cashier.Orders.Select(order => new OrderDTO
-    {
-        Id = order.Id,
-        CashierId = order.CashierId,
-        CashierFullName = cashierDTO.FullName,
-        PaidOnDate = order.PaidOnDate,
-        Total = order.Total,
-        Products = order.OrderProducts.Select(op => new OrderProductDTO
+        LastName = cashier.LastName,
+        Orders = cashier.Orders.Select(order => new OrderDTO
         {
-            ProductId = op.ProductId,
-            ProductName = op.Product!.ProductName,
-            Quantity = op.Quantity,
-            Price = op.Product.Price
+            Id = order.Id,
+            CashierId = order.CashierId,
+            CashierFullName = $"{cashier.FirstName} {cashier.LastName}",
+            PaidOnDate = order.PaidOnDate,
+            Total = order.Total,
+            Products = order.OrderProducts.Select(op => new OrderProductDTO
+            {
+                ProductId = op.ProductId,
+                ProductName = op.Product!.ProductName,
+                Quantity = op.Quantity,
+                Price = op.Product.Price
+            }).ToList()
         }).ToList()
-    }).ToList();
-
-    CashierDetailDTO cashierDetail = new CashierDetailDTO
-    {
-        Cashier = cashierDTO,
-        Orders = orders
     };
 
     return Results.Ok(cashierDetail);
